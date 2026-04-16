@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Dash - Mini Geometry Dash Clone</title>
+  <style>
+    :root {
+      --bg: #070912;
+      --panel: rgba(12, 16, 33, 0.92);
+      --cyan: #31f5ff;
+      --purple: #9b4dff;
+      --pink: #ff4fd8;
+      --danger: #ff3c6f;
+      --text: #d8ecff;
+      --grid: rgba(140, 195, 255, 0.16);
+      --line: rgba(94, 182, 255, 0.36);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at 20% 15%, #111b3d 0%, #090d1d 40%, #05070f 100%);
+      color: var(--text);
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    #gameWrapper {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 12px;
+    }
+
+    canvas {
+      width: min(1280px, 100vw - 24px);
+      height: min(720px, 100vh - 24px);
+      border: 1px solid rgba(118, 189, 255, 0.4);
+      border-radius: 12px;
+      background: #050813;
+      box-shadow:
+        0 0 36px rgba(20, 129, 255, 0.24),
+        inset 0 0 58px rgba(76, 38, 161, 0.16);
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      padding: 16px;
+    }
+
+    .overlay.active {
+      display: flex;
+      pointer-events: auto;
+    }
+
+    .panel {
+      width: min(620px, 95vw);
+      background: var(--panel);
+      border: 1px solid rgba(124, 198, 255, 0.34);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow:
+        0 0 36px rgba(67, 176, 255, 0.2),
+        inset 0 0 20px rgba(60, 30, 140, 0.2);
+      text-align: center;
+      backdrop-filter: blur(3px);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      text-shadow:
+        0 0 12px rgba(49, 245, 255, 0.8),
+        0 0 24px rgba(155, 77, 255, 0.55);
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      letter-spacing: 0.06em;
+      margin-bottom: 16px;
+      color: #c2ddff;
+    }
+
+    p.subtitle {
+      color: #9fbae4;
+      margin-bottom: 18px;
+    }
+
+    .btnRow,
+    .levelGrid,
+    .toolRow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    button {
+      background: linear-gradient(160deg, rgba(47, 74, 152, 0.7), rgba(30, 42, 92, 0.82));
+      color: var(--text);
+      border: 1px solid rgba(126, 203, 255, 0.5);
+      border-radius: 9px;
+      padding: 10px 16px;
+      min-width: 110px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      border-color: rgba(171, 232, 255, 0.95);
+      box-shadow: 0 0 18px rgba(64, 207, 255, 0.35);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.activeTool {
+      border-color: var(--pink);
+      box-shadow: 0 0 16px rgba(255, 79, 216, 0.45);
+      color: #ffd8f8;
+    }
+
+    #hud {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(1280px, calc(100vw - 24px));
+      display: none;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    #progressBarWrap {
+      width: 100%;
+      height: 16px;
+      border: 1px solid rgba(126, 200, 255, 0.5);
+      border-radius: 999px;
+      background: rgba(9, 15, 35, 0.78);
+      overflow: hidden;
+      box-shadow: inset 0 0 12px rgba(49, 245, 255, 0.15);
+    }
+
+    #progressBar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--purple), var(--pink));
+      box-shadow: 0 0 12px rgba(56, 219, 255, 0.7);
+      transition: width 0.05s linear;
+    }
+
+    #hudButtons {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+      justify-content: flex-end;
+    }
+
+    #editorOverlay {
+      position: fixed;
+      right: 16px;
+      top: 16px;
+      width: min(360px, calc(100vw - 32px));
+      display: none;
+      z-index: 5;
+      background: rgba(9, 14, 30, 0.95);
+      border: 1px solid rgba(126, 196, 255, 0.5);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 0 26px rgba(62, 201, 255, 0.22);
+    }
+
+    #editorOverlay h3 {
+      margin-bottom: 10px;
+      color: #c9e5ff;
+    }
+
+    #editorOverlay p {
+      margin: 6px 0 10px;
+      color: #9fbde5;
+      font-size: 0.9rem;
+      line-height: 1.35;
+    }
+
+    #jsonArea {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      border-radius: 8px;
+      border: 1px solid rgba(110, 179, 255, 0.42);
+      background: rgba(3, 7, 18, 0.9);
+      color: #cde4ff;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+      margin-top: 8px;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: #8db0df;
+    }
+
+    .small {
+      font-size: 0.85rem;
+      color: #a6c2eb;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameWrapper">
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+  </div>
+
+  <div id="hud">
+    <div id="progressBarWrap"><div id="progressBar"></div></div>
+    <div id="hudButtons">
+      <button id="restartBtn">Restart</button>
+      <button id="backBtn">Main Menu</button>
+    </div>
+  </div>
+
+  <div id="menuOverlay" class="overlay active">
+    <div class="panel">
+      <h1>Neon Dash</h1>
+      <p class="subtitle">A polished Geometry Dash-inspired mini clone</p>
+      <div class="btnRow">
+        <button id="playBtn">Play</button>
+        <button id="openEditorBtn">Level Editor</button>
+      </div>
+      <p class="small">Controls: SPACE / Click to jump</p>
+    </div>
+  </div>
+
+  <div id="levelSelectOverlay" class="overlay">
+    <div class="panel">
+      <h2>Select a Level</h2>
+      <div class="levelGrid">
+        <button data-level="0">Level 1</button>
+        <button data-level="1">Level 2</button>
+        <button data-level="2">Level 3</button>
+      </div>
+      <div class="btnRow" style="margin-top: 16px;">
+        <button id="backToMenuFromLevels">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editorOverlay">
+    <h3>Level Editor</h3>
+    <div class="toolRow" id="toolButtons">
+      <button data-tool="block">Add Block</button>
+      <button data-tool="spike">Add Spike</button>
+      <button data-tool="erase">Erase</button>
+    </div>
+    <div class="toolRow" style="margin-top: 10px;">
+      <button id="saveLevelBtn">Save JSON</button>
+      <button id="loadLevelBtn">Load JSON</button>
+      <button id="playTestBtn">Play Test</button>
+      <button id="exitEditorBtn">Exit</button>
+    </div>
+    <textarea id="jsonArea" placeholder="Saved JSON appears here..."></textarea>
+    <p class="hint">Grid placement enabled. Click to place or erase objects. Mouse wheel to zoom camera in editor.</p>
+  </div>
+
+  <script>
+    // ============================================================
+    // 1) CANVAS SETUP
+    // ============================================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const VIRTUAL_WIDTH = canvas.width;
+    const VIRTUAL_HEIGHT = canvas.height;
+
+    // ============================================================
+    // 2) GAME VARIABLES
+    // ============================================================
+    const GAME_STATE = {
+      MENU: 'menu',
+      LEVEL_SELECT: 'level_select',
+      PLAYING: 'playing',
+      EDITOR: 'editor',
+      DEAD: 'dead',
+      WIN: 'win'
+    };
+
+    let state = GAME_STATE.MENU;
+
+    const world = {
+      gravity: 2350,
+      jumpVelocity: -860,
+      groundY: 620,
+      cameraX: 0,
+      shakeTime: 0,
+      shakeMag: 0,
+      flashTime: 0,
+      pulse: 0
+    };
+
+    const player = {
+      x: 180,
+      y: 0,
+      width: 42,
+      height: 42,
+      velocityY: 0,
+      speedX: 360,
+      onGround: true,
+      coyoteTimer: 0,
+      jumpBufferTimer: 0,
+      rotation: 0,
+      trail: []
+    };
+
+    const gameplay = {
+      coyoteTimeMax: 0.09,
+      jumpBufferMax: 0.11,
+      levelIndex: 0,
+      levelLength: 5000,
+      winTriggerX: 5000,
+      deathPause: 0,
+      modeBeforeEditorTest: null
+    };
+
+    const input = {
+      jumpPressed: false,
+      jumpHeld: false,
+      mouseDown: false
+    };
+
+    // ============================================================
+    // 3) PLAYER PHYSICS
+    // ============================================================
+    function resetPlayer() {
+      player.x = 180;
+      player.y = world.groundY - player.height;
+      player.velocityY = 0;
+      player.onGround = true;
+      player.coyoteTimer = gameplay.coyoteTimeMax;
+      player.jumpBufferTimer = 0;
+      player.rotation = 0;
+      player.trail.length = 0;
+      world.cameraX = 0;
+      world.shakeTime = 0;
+      world.flashTime = 0;
+      gameplay.deathPause = 0;
+    }
+
+    function queueJump() {
+      input.jumpPressed = true;
+      player.jumpBufferTimer = gameplay.jumpBufferMax;
+      playSfx('jumpTap');
+    }
+
+    function attemptJump() {
+      if (player.jumpBufferTimer > 0 && (player.onGround || player.coyoteTimer > 0)) {
+        player.velocityY = world.jumpVelocity;
+        player.onGround = false;
+        player.coyoteTimer = 0;
+        player.jumpBufferTimer = 0;
+        playSfx('jump');
+      }
+    }
+
+    function updatePlayerPhysics(dt) {
+      player.jumpBufferTimer = Math.max(0, player.jumpBufferTimer - dt);
+
+      if (player.onGround) {
+        player.coyoteTimer = gameplay.coyoteTimeMax;
+      } else {
+        player.coyoteTimer = Math.max(0, player.coyoteTimer - dt);
+      }
+
+      attemptJump();
+
+      // Required deterministic vertical physics (deltaTime-based)
+      player.velocityY += world.gravity * dt;
+      player.y += player.velocityY * dt;
+
+      // Ground clamp
+      const floorY = world.groundY - player.height;
+      if (player.y >= floorY) {
+        player.y = floorY;
+        player.velocityY = 0;
+        player.onGround = true;
+      } else {
+        player.onGround = false;
+      }
+
+      // Auto-run movement
+      player.x += player.speedX * dt;
+      world.cameraX = Math.max(0, player.x - 260);
+
+      // Cube-like spin in air
+      if (!player.onGround) {
+        player.rotation += dt * 8.4;
+      } else {
+        player.rotation = Math.round(player.rotation / (Math.PI / 2)) * (Math.PI / 2);
+      }
+
+      // Trail particles
+      player.trail.push({
+        x: player.x + player.width * 0.5,
+        y: player.y + player.height * 0.5,
+        life: 0.34,
+        age: 0
+      });
+      for (let i = player.trail.length - 1; i >= 0; i--) {
+        const t = player.trail[i];
+        t.age += dt;
+        if (t.age >= t.life) player.trail.splice(i, 1);
+      }
+    }
+
+    // ============================================================
+    // 4) LEVEL DATA
+    // ============================================================
+    function generateLevel1() {
+      const objects = [];
+      const gy = world.groundY;
+      const spikes = [600, 940, 1300, 1720, 2120, 2600, 3000, 3460, 3920, 4340];
+      spikes.forEach(x => objects.push({ x, y: gy - 40, width: 40, height: 40, type: 'spike' }));
+
+      const blocks = [760, 1540, 2320, 3160, 4080];
+      blocks.forEach(x => objects.push({ x, y: gy - 88, width: 88, height: 88, type: 'block' }));
+
+      return { name: 'Level 1', speed: 345, length: 5200, objects };
+    }
+
+    function generateLevel2() {
+      const objects = [];
+      const gy = world.groundY;
+      for (let i = 0; i < 24; i++) {
+        const base = 550 + i * 200;
+        if (i % 2 === 0) {
+          objects.push({ x: base, y: gy - 40, width: 40, height: 40, type: 'spike' });
+          objects.push({ x: base + 56, y: gy - 40, width: 40, height: 40, type: 'spike' });
+        }
+        if (i % 3 === 0) {
+          objects.push({ x: base + 94, y: gy - 96, width: 96, height: 96, type: 'block' });
+        }
+      }
+      return { name: 'Level 2', speed: 410, length: 5600, objects };
+    }
+
+    function generateLevel3() {
+      const objects = [];
+      const gy = world.groundY;
+      for (let i = 0; i < 32; i++) {
+        const x = 500 + i * 150;
+        if (i % 2 === 0) objects.push({ x, y: gy - 40, width: 40, height: 40, type: 'spike' });
+        if (i % 4 !== 0) objects.push({ x: x + 52, y: gy - 40, width: 40, height: 40, type: 'spike' });
+        if (i % 3 === 0) objects.push({ x: x + 82, y: gy - 76, width: 76, height: 76, type: 'block' });
+        if (i % 5 === 0) objects.push({ x: x + 26, y: gy - 148, width: 72, height: 72, type: 'block' });
+      }
+      return { name: 'Level 3', speed: 490, length: 6000, objects };
+    }
+
+    const levels = [generateLevel1(), generateLevel2(), generateLevel3()];
+    let currentLevel = levels[0];
+
+    const editor = {
+      enabled: false,
+      objects: [],
+      grid: 40,
+      tool: 'block',
+      zoom: 1,
+      levelName: 'Custom Level'
+    };
+
+    function loadLevel(index) {
+      gameplay.levelIndex = index;
+      currentLevel = levels[index];
+      player.speedX = currentLevel.speed;
+      gameplay.levelLength = currentLevel.length;
+      gameplay.winTriggerX = currentLevel.length - 120;
+      resetPlayer();
+    }
+
+    function loadEditorAsLevel() {
+      currentLevel = {
+        name: editor.levelName,
+        speed: 390,
+        length: Math.max(2600, getEditorMaxX() + 1200),
+        objects: editor.objects
+      };
+      player.speedX = currentLevel.speed;
+      gameplay.levelLength = currentLevel.length;
+      gameplay.winTriggerX = currentLevel.length - 120;
+      resetPlayer();
+    }
+
+    function getEditorMaxX() {
+      let maxX = 0;
+      for (const obj of editor.objects) {
+        maxX = Math.max(maxX, obj.x + obj.width);
+      }
+      return maxX;
+    }
+
+    // ============================================================
+    // 5) RENDERING FUNCTIONS
+    // ============================================================
+    function clearScreen(dt) {
+      world.pulse += dt * 2.2;
+      const pulseGlow = 18 + Math.sin(world.pulse) * 10;
+      const grad = ctx.createLinearGradient(0, 0, 0, VIRTUAL_HEIGHT);
+      grad.addColorStop(0, '#090f25');
+      grad.addColorStop(1, '#040711');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+
+      ctx.fillStyle = `rgba(70, 60, 180, 0.08)`;
+      for (let i = 0; i < 8; i++) {
+        const x = (i * 210 - (world.cameraX * 0.2) % 210);
+        ctx.fillRect(x, 0, 130, VIRTUAL_HEIGHT);
+      }
+
+      ctx.fillStyle = `rgba(60, 255, 255, ${(0.045 + pulseGlow / 1000).toFixed(3)})`;
+      ctx.fillRect(0, world.groundY, VIRTUAL_WIDTH, VIRTUAL_HEIGHT - world.groundY);
+
+      drawGrid();
+    }
+
+    function drawGrid() {
+      ctx.strokeStyle = editor.enabled ? 'rgba(130,205,255,0.18)' : 'rgba(130,205,255,0.08)';
+      ctx.lineWidth = 1;
+      const size = editor.grid;
+      const startX = - (world.cameraX % size);
+      for (let x = startX; x < VIRTUAL_WIDTH; x += size) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, VIRTUAL_HEIGHT);
+        ctx.stroke();
+      }
+      for (let y = 0; y < VIRTUAL_HEIGHT; y += size) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(VIRTUAL_WIDTH, y);
+        ctx.stroke();
+      }
+    }
+
+    function drawTrail() {
+      for (const t of player.trail) {
+        const alpha = 1 - t.age / t.life;
+        const radius = 8 * alpha;
+        const sx = t.x - world.cameraX;
+        const sy = t.y;
+        const rg = ctx.createRadialGradient(sx, sy, 0, sx, sy, radius * 2.4);
+        rg.addColorStop(0, `rgba(49,245,255,${0.32 * alpha})`);
+        rg.addColorStop(1, 'rgba(49,245,255,0)');
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawPlayer() {
+      const sx = player.x - world.cameraX + player.width / 2;
+      const sy = player.y + player.height / 2;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(player.rotation);
+
+      ctx.shadowBlur = 24;
+      ctx.shadowColor = 'rgba(49,245,255,0.95)';
+      ctx.fillStyle = '#4bf5ff';
+      ctx.fillRect(-player.width / 2, -player.height / 2, player.width, player.height);
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(10, 30, 60, 0.7)';
+      ctx.fillRect(-player.width / 2 + 8, -player.height / 2 + 8, player.width - 16, player.height - 16);
+
+      ctx.restore();
+    }
+
+    function drawBlock(o) {
+      const sx = o.x - world.cameraX;
+      ctx.save();
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = 'rgba(155,77,255,0.85)';
+      const g = ctx.createLinearGradient(sx, o.y, sx + o.width, o.y + o.height);
+      g.addColorStop(0, '#8840ff');
+      g.addColorStop(1, '#ca58ff');
+      ctx.fillStyle = g;
+      ctx.fillRect(sx, o.y, o.width, o.height);
+      ctx.restore();
+
+      ctx.strokeStyle = 'rgba(210,180,255,0.75)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(sx + 1, o.y + 1, o.width - 2, o.height - 2);
+    }
+
+    function drawSpike(o) {
+      const sx = o.x - world.cameraX;
+      ctx.save();
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = 'rgba(255,70,150,0.9)';
+      const grad = ctx.createLinearGradient(sx, o.y, sx + o.width, o.y + o.height);
+      grad.addColorStop(0, '#ff3e98');
+      grad.addColorStop(1, '#ff7f4f');
+      ctx.fillStyle = grad;
+
+      ctx.beginPath();
+      ctx.moveTo(sx, o.y + o.height);
+      ctx.lineTo(sx + o.width / 2, o.y);
+      ctx.lineTo(sx + o.width, o.y + o.height);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawLevelObjects() {
+      const source = editor.enabled ? editor.objects : currentLevel.objects;
+      const minX = world.cameraX - 100;
+      const maxX = world.cameraX + VIRTUAL_WIDTH + 100;
+
+      for (const o of source) {
+        if (o.x + o.width < minX || o.x > maxX) continue;
+        if (o.type === 'block') drawBlock(o);
+        else drawSpike(o);
+      }
+    }
+
+    function drawFinishLine() {
+      if (editor.enabled) return;
+      const x = gameplay.winTriggerX - world.cameraX;
+      if (x < -100 || x > VIRTUAL_WIDTH + 100) return;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(49,245,255,0.9)';
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = 'rgba(49,245,255,0.9)';
+      ctx.beginPath();
+      ctx.moveTo(x, 120);
+      ctx.lineTo(x, world.groundY + 12);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawEditorCursor() {
+      if (!editor.enabled) return;
+      const worldPos = screenToWorld(mouse.x, mouse.y);
+      const gx = Math.floor(worldPos.x / editor.grid) * editor.grid;
+      const gy = Math.floor(worldPos.y / editor.grid) * editor.grid;
+      const sx = gx - world.cameraX;
+
+      ctx.save();
+      ctx.strokeStyle = editor.tool === 'erase' ? 'rgba(255,90,130,0.9)' : 'rgba(49,245,255,0.9)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(sx, gy, editor.grid, editor.grid);
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    function applyScreenEffects(dt) {
+      if (world.flashTime > 0) {
+        world.flashTime = Math.max(0, world.flashTime - dt);
+        const alpha = world.flashTime / 0.24;
+        ctx.fillStyle = `rgba(255, 95, 152, ${(0.28 * alpha).toFixed(3)})`;
+        ctx.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+      }
+    }
+
+    // ============================================================
+    // 6) GAME LOOP
+    // ============================================================
+    let lastTime = performance.now();
+
+    function gameLoop(now) {
+      const dt = Math.min((now - lastTime) / 1000, 0.033);
+      lastTime = now;
+
+      if (state === GAME_STATE.PLAYING || state === GAME_STATE.DEAD) {
+        updateGame(dt);
+      } else if (state === GAME_STATE.EDITOR) {
+        updateEditor(dt);
+      }
+
+      render(dt);
+      input.jumpPressed = false;
+      requestAnimationFrame(gameLoop);
+    }
+
+    function updateGame(dt) {
+      if (state === GAME_STATE.DEAD) {
+        gameplay.deathPause -= dt;
+        if (gameplay.deathPause <= 0) {
+          restartLevel();
+        }
+        return;
+      }
+
+      updatePlayerPhysics(dt);
+      resolveCollisions(currentLevel.objects);
+
+      if (player.x >= gameplay.winTriggerX) {
+        state = GAME_STATE.WIN;
+        playSfx('win');
+        setTimeout(() => {
+          if (state === GAME_STATE.WIN) {
+            showLevelSelect();
+          }
+        }, 1000);
+      }
+
+      world.shakeTime = Math.max(0, world.shakeTime - dt);
+      updateHUDProgress();
+    }
+
+    function updateEditor(dt) {
+      world.cameraX += dt * 220;
+      const max = Math.max(0, getEditorMaxX() - 500);
+      if (world.cameraX > max) world.cameraX = max;
+      updateHUDProgressEditor();
+    }
+
+    function render(dt) {
+      ctx.save();
+      if (world.shakeTime > 0) {
+        const intensity = world.shakeMag * (world.shakeTime / 0.25);
+        ctx.translate((Math.random() - 0.5) * intensity, (Math.random() - 0.5) * intensity);
+      }
+
+      clearScreen(dt);
+      drawLevelObjects();
+      drawFinishLine();
+      drawTrail();
+      if (state !== GAME_STATE.EDITOR) drawPlayer();
+      drawEditorCursor();
+      applyScreenEffects(dt);
+
+      ctx.restore();
+
+      if (state === GAME_STATE.WIN) {
+        drawCenteredText('LEVEL COMPLETE!', '#4bffca');
+      } else if (state === GAME_STATE.DEAD) {
+        drawCenteredText('CRASH!', '#ff6a92');
+      } else if (state === GAME_STATE.EDITOR) {
+        drawTopLeftText('EDITOR MODE');
+      }
+    }
+
+    function drawCenteredText(text, color) {
+      ctx.save();
+      ctx.font = 'bold 52px Segoe UI';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = color;
+      ctx.shadowBlur = 22;
+      ctx.shadowColor = color;
+      ctx.fillText(text, VIRTUAL_WIDTH / 2, 120);
+      ctx.restore();
+    }
+
+    function drawTopLeftText(text) {
+      ctx.save();
+      ctx.font = 'bold 22px Segoe UI';
+      ctx.fillStyle = '#94cfff';
+      ctx.fillText(text, 18, 34);
+      ctx.restore();
+    }
+
+    // ============================================================
+    // 7) COLLISION DETECTION
+    // ============================================================
+    function aabb(a, b) {
+      return (
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
+      );
+    }
+
+    function resolveCollisions(objects) {
+      const playerBox = {
+        x: player.x,
+        y: player.y,
+        width: player.width,
+        height: player.height
+      };
+
+      // Early broad-phase based on camera visible range for performance
+      const minX = player.x - 120;
+      const maxX = player.x + 220;
+
+      for (const o of objects) {
+        if (o.x > maxX || o.x + o.width < minX) continue;
+        if (!aabb(playerBox, o)) continue;
+
+        if (o.type === 'spike') {
+          killPlayer();
+          return;
+        }
+
+        // Block collision: if falling onto top, allow landing; otherwise death
+        const playerBottomPrev = player.y - player.velocityY * (1 / 60) + player.height;
+        if (player.velocityY >= 0 && playerBottomPrev <= o.y + 14 && player.y + player.height >= o.y) {
+          player.y = o.y - player.height;
+          player.velocityY = 0;
+          player.onGround = true;
+          player.coyoteTimer = gameplay.coyoteTimeMax;
+        } else {
+          killPlayer();
+          return;
+        }
+      }
+    }
+
+    function killPlayer() {
+      if (state !== GAME_STATE.PLAYING) return;
+      state = GAME_STATE.DEAD;
+      gameplay.deathPause = 0.55;
+      world.shakeTime = 0.25;
+      world.shakeMag = 14;
+      world.flashTime = 0.24;
+      playSfx('death');
+    }
+
+    function restartLevel() {
+      if (editor.enabled && gameplay.modeBeforeEditorTest === GAME_STATE.EDITOR) {
+        state = GAME_STATE.EDITOR;
+        return;
+      }
+      state = GAME_STATE.PLAYING;
+      resetPlayer();
+      updateHUDProgress();
+    }
+
+    // ============================================================
+    // 8) INPUT HANDLING
+    // ============================================================
+    const mouse = { x: 0, y: 0 };
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!input.jumpHeld) {
+          input.jumpHeld = true;
+          if (state === GAME_STATE.PLAYING) queueJump();
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space') {
+        input.jumpHeld = false;
+      }
+    });
+
+    canvas.addEventListener('mousedown', () => {
+      input.mouseDown = true;
+      if (state === GAME_STATE.PLAYING) {
+        queueJump();
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      input.mouseDown = false;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+      mouse.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    });
+
+    canvas.addEventListener('click', () => {
+      if (state === GAME_STATE.EDITOR) {
+        editorPaintAtMouse();
+      }
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      if (state !== GAME_STATE.EDITOR) return;
+      e.preventDefault();
+      const delta = Math.sign(e.deltaY);
+      world.cameraX = Math.max(0, world.cameraX + delta * 120);
+    }, { passive: false });
+
+    // ============================================================
+    // 9) LEVEL EDITOR LOGIC
+    // ============================================================
+    function screenToWorld(sx, sy) {
+      return { x: sx + world.cameraX, y: sy };
+    }
+
+    function editorPaintAtMouse() {
+      const pos = screenToWorld(mouse.x, mouse.y);
+      const gx = Math.floor(pos.x / editor.grid) * editor.grid;
+      const gy = Math.floor(pos.y / editor.grid) * editor.grid;
+      const w = editor.grid;
+      const h = editor.grid;
+
+      if (gy + h > world.groundY + 1) return;
+
+      if (editor.tool === 'erase') {
+        for (let i = editor.objects.length - 1; i >= 0; i--) {
+          const o = editor.objects[i];
+          if (gx < o.x + o.width && gx + w > o.x && gy < o.y + o.height && gy + h > o.y) {
+            editor.objects.splice(i, 1);
+            playSfx('erase');
+            return;
+          }
+        }
+        return;
+      }
+
+      for (const o of editor.objects) {
+        if (o.x === gx && o.y === gy) return;
+      }
+
+      editor.objects.push({
+        x: gx,
+        y: gy,
+        width: w,
+        height: h,
+        type: editor.tool
+      });
+      editor.objects.sort((a, b) => a.x - b.x);
+      playSfx('place');
+    }
+
+    function saveEditorJSON() {
+      const payload = {
+        name: editor.levelName,
+        speed: 390,
+        length: Math.max(2600, getEditorMaxX() + 1200),
+        objects: editor.objects
+      };
+      jsonArea.value = JSON.stringify(payload, null, 2);
+    }
+
+    function loadEditorJSON() {
+      try {
+        const data = JSON.parse(jsonArea.value);
+        if (!Array.isArray(data.objects)) throw new Error('Missing objects array');
+        editor.levelName = data.name || 'Custom Level';
+        editor.objects = data.objects
+          .filter(o => Number.isFinite(o.x) && Number.isFinite(o.y) && Number.isFinite(o.width) && Number.isFinite(o.height) && (o.type === 'block' || o.type === 'spike'))
+          .map(o => ({ x: o.x, y: o.y, width: o.width, height: o.height, type: o.type }))
+          .sort((a, b) => a.x - b.x);
+        playSfx('ui');
+      } catch (err) {
+        alert('Invalid JSON: ' + err.message);
+      }
+    }
+
+    // ============================================================
+    // 10) UI SYSTEM
+    // ============================================================
+    const menuOverlay = document.getElementById('menuOverlay');
+    const levelSelectOverlay = document.getElementById('levelSelectOverlay');
+    const editorOverlay = document.getElementById('editorOverlay');
+    const hud = document.getElementById('hud');
+    const progressBar = document.getElementById('progressBar');
+
+    const playBtn = document.getElementById('playBtn');
+    const openEditorBtn = document.getElementById('openEditorBtn');
+    const backToMenuFromLevels = document.getElementById('backToMenuFromLevels');
+    const restartBtn = document.getElementById('restartBtn');
+    const backBtn = document.getElementById('backBtn');
+
+    const toolButtons = document.querySelectorAll('#toolButtons button');
+    const saveLevelBtn = document.getElementById('saveLevelBtn');
+    const loadLevelBtn = document.getElementById('loadLevelBtn');
+    const playTestBtn = document.getElementById('playTestBtn');
+    const exitEditorBtn = document.getElementById('exitEditorBtn');
+    const jsonArea = document.getElementById('jsonArea');
+
+    function showMenu() {
+      state = GAME_STATE.MENU;
+      editor.enabled = false;
+      hud.style.display = 'none';
+      editorOverlay.style.display = 'none';
+      menuOverlay.classList.add('active');
+      levelSelectOverlay.classList.remove('active');
+    }
+
+    function showLevelSelect() {
+      state = GAME_STATE.LEVEL_SELECT;
+      editor.enabled = false;
+      hud.style.display = 'none';
+      editorOverlay.style.display = 'none';
+      menuOverlay.classList.remove('active');
+      levelSelectOverlay.classList.add('active');
+    }
+
+    function startLevel(index) {
+      menuOverlay.classList.remove('active');
+      levelSelectOverlay.classList.remove('active');
+      editorOverlay.style.display = 'none';
+      hud.style.display = 'block';
+      editor.enabled = false;
+      state = GAME_STATE.PLAYING;
+      loadLevel(index);
+      playSfx('ui');
+    }
+
+    function startEditor() {
+      state = GAME_STATE.EDITOR;
+      editor.enabled = true;
+      hud.style.display = 'block';
+      menuOverlay.classList.remove('active');
+      levelSelectOverlay.classList.remove('active');
+      editorOverlay.style.display = 'block';
+      world.cameraX = 0;
+      player.trail.length = 0;
+      updateHUDProgressEditor();
+      highlightToolButton();
+      playSfx('ui');
+    }
+
+    function updateHUDProgress() {
+      const pct = Math.max(0, Math.min(100, (player.x / gameplay.winTriggerX) * 100));
+      progressBar.style.width = `${pct.toFixed(2)}%`;
+    }
+
+    function updateHUDProgressEditor() {
+      const max = Math.max(2600, getEditorMaxX() + 1200);
+      const pct = Math.max(0, Math.min(100, (world.cameraX / max) * 100));
+      progressBar.style.width = `${pct.toFixed(2)}%`;
+    }
+
+    function highlightToolButton() {
+      toolButtons.forEach(btn => {
+        btn.classList.toggle('activeTool', btn.dataset.tool === editor.tool);
+      });
+    }
+
+    playBtn.addEventListener('click', showLevelSelect);
+    openEditorBtn.addEventListener('click', startEditor);
+    backToMenuFromLevels.addEventListener('click', showMenu);
+
+    document.querySelectorAll('[data-level]').forEach(btn => {
+      btn.addEventListener('click', () => startLevel(Number(btn.dataset.level)));
+    });
+
+    restartBtn.addEventListener('click', () => {
+      if (state === GAME_STATE.EDITOR) {
+        world.cameraX = 0;
+        updateHUDProgressEditor();
+      } else {
+        restartLevel();
+      }
+      playSfx('ui');
+    });
+
+    backBtn.addEventListener('click', showMenu);
+
+    toolButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        editor.tool = btn.dataset.tool;
+        highlightToolButton();
+        playSfx('ui');
+      });
+    });
+
+    saveLevelBtn.addEventListener('click', saveEditorJSON);
+    loadLevelBtn.addEventListener('click', loadEditorJSON);
+
+    playTestBtn.addEventListener('click', () => {
+      if (editor.objects.length === 0) {
+        alert('Place at least one object before playtesting.');
+        return;
+      }
+      gameplay.modeBeforeEditorTest = GAME_STATE.EDITOR;
+      editor.enabled = true;
+      loadEditorAsLevel();
+      state = GAME_STATE.PLAYING;
+      playSfx('ui');
+    });
+
+    exitEditorBtn.addEventListener('click', showMenu);
+
+    // ============================================================
+    // Web Audio API SFX
+    // ============================================================
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function beep(freq, duration, type = 'square', vol = 0.08, slide = 0) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      if (slide) o.frequency.linearRampToValueAtTime(freq + slide, audioCtx.currentTime + duration);
+      g.gain.setValueAtTime(vol, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start();
+      o.stop(audioCtx.currentTime + duration);
+    }
+
+    function noise(duration = 0.08, vol = 0.05) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const bufferSize = audioCtx.sampleRate * duration;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.6;
+      const source = audioCtx.createBufferSource();
+      const gain = audioCtx.createGain();
+      source.buffer = buffer;
+      gain.gain.value = vol;
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+      source.connect(gain);
+      gain.connect(audioCtx.destination);
+      source.start();
+    }
+
+    function playSfx(name) {
+      switch (name) {
+        case 'jumpTap':
+          beep(660, 0.03, 'triangle', 0.03, 40);
+          break;
+        case 'jump':
+          beep(410, 0.09, 'square', 0.08, 220);
+          break;
+        case 'death':
+          beep(280, 0.22, 'sawtooth', 0.12, -190);
+          noise(0.11, 0.03);
+          break;
+        case 'win':
+          beep(560, 0.1, 'triangle', 0.08, 180);
+          setTimeout(() => beep(760, 0.16, 'triangle', 0.07, 220), 120);
+          break;
+        case 'place':
+          beep(720, 0.05, 'square', 0.045, 30);
+          break;
+        case 'erase':
+          beep(220, 0.06, 'square', 0.04, -40);
+          break;
+        case 'ui':
+          beep(500, 0.05, 'triangle', 0.04, 80);
+          break;
+      }
+    }
+
+    // Initial state
+    showMenu();
+    resetPlayer();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
